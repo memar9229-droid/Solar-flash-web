@@ -1132,7 +1132,7 @@ function SignalSubscription() {
   );
 }
 
-export default function SolarFlashFull() {
+export default function App() {
   const { scrollY } = useScroll();
   const navBlur = useSpring(0, { stiffness:300, damping:30 });
   const glowRef = useRef(null);
