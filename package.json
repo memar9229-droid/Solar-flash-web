@@ -1,7 +1,7 @@
 {
   "name": "solar-flash-web",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +13,9 @@
     "react-dom": "^18.2.0",
     "framer-motion": "^10.16.4",
     "react-spring": "^9.7.3",
-    "lucide-react": "^0.284.0"
+    "lucide-react": "^0.284.0",
+    "clsx": "^2.0.0",
+    "tailwind-merge": "^1.14.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.1.0",
