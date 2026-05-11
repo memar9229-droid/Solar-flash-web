@@ -1603,12 +1603,18 @@ export default function SolarFlashFull() {
 
         {/* Desktop Nav */}
         <motion.div className="desktop-nav" style={{display:"flex",gap:"2.2rem"}} initial={{opacity:0,y:-10}} animate={{opacity:1,y:0}} transition={{duration:.8,delay:.4}}>
-          {["home","transmissions","archive","frequency","portal"].map(s => (
-            <a key={s} href={`#${s}`} className="nav-link"
-              onClick={e=>{e.preventDefault();document.getElementById(s)?.scrollIntoView({behavior:'smooth',block:'start'});}}>
-              {s}
-            </a>
-          ))}
+       {["home","transmissions","frequency","portal"].map(s => (
+  <a key={s} href={`#${s}`} className="nav-link"
+    onClick={e=>{e.preventDefault();document.getElementById(s)?.scrollIntoView({behavior:'smooth',block:'start'});}}>
+    {s}
+  </a>
+))}
+
+{/* Report Card Link */}
+<a href="/report" className="nav-link"
+  style={{color:"rgba(255,120,60,.7)"}}>
+  REPORT CARD ⊙
+</a>
         </motion.div>
 
         {/* Hamburger — mobile only */}
