@@ -1,9 +1,9 @@
-    import React from 'react'
+import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import SolarFlashFull from './SolarFlashFull.jsx'
-import ReportCard from './ReportCard.jsx'
-import Dashboard from './Dashboard.jsx'
+import ReportCard from './src/ReportCard.jsx'
+import Dashboard from './src/Dashboard.jsx'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -16,5 +16,3 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </BrowserRouter>
   </React.StrictMode>
 )
-
-    
