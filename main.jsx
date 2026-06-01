@@ -6,7 +6,8 @@ import ReportCard from './src/ReportCard.jsx'
 import Dashboard from './src/Dashboard.jsx'
 import Litepaper from './src/Litepaper.jsx'
 import SmartAlerts from './src/SmartAlerts.jsx'
-
+import ReactorDemo from './src/SurvivalReactor.jsx'
+<Route path="/reactor-demo" element={<ReactorDemo />} />
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
@@ -16,6 +17,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/litepaper" element={<Litepaper />} />
         <Route path="/alerts"    element={<SmartAlerts />} />
+      <Route path="/reactor-demo" element={<ReactorDemo />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>
