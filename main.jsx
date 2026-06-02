@@ -9,6 +9,7 @@ import SmartAlerts        from './src/SmartAlerts.jsx'
 import Ecosystem          from './src/Ecosystem.jsx'
 import SurvivalScorePage  from './src/OrbitMetrics.jsx'
 import ThreatScannerPage  from './src/ThreatScanner.jsx'
+import SolarPulsePage     from './src/SolarPulse.jsx'
 import ReactorDemo        from './src/SurvivalReactor.jsx'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -23,6 +24,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/ecosystem"    element={<Ecosystem />} />
         <Route path="/score"        element={<SurvivalScorePage />} />
         <Route path="/threat"       element={<ThreatScannerPage />} />
+        <Route path="/pulse"        element={<SolarPulsePage />} />
         <Route path="/reactor-demo" element={<ReactorDemo />} />
       </Routes>
     </BrowserRouter>
