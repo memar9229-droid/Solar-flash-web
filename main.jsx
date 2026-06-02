@@ -1,16 +1,17 @@
     import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import SolarFlashFull    from './SolarFlashFull.jsx'
-import ReportCard         from './src/ReportCard.jsx'
-import Dashboard          from './src/Dashboard.jsx'
-import Litepaper          from './src/Litepaper.jsx'
-import SmartAlerts        from './src/SmartAlerts.jsx'
-import Ecosystem          from './src/Ecosystem.jsx'
-import SurvivalScorePage  from './src/OrbitMetrics.jsx'
-import ThreatScannerPage  from './src/ThreatScanner.jsx'
-import SolarPulsePage     from './src/SolarPulse.jsx'
-import ReactorDemo        from './src/SurvivalReactor.jsx'
+import SolarFlashFull      from './SolarFlashFull.jsx'
+import ReportCard           from './src/ReportCard.jsx'
+import Dashboard            from './src/Dashboard.jsx'
+import Litepaper            from './src/Litepaper.jsx'
+import SmartAlerts          from './src/SmartAlerts.jsx'
+import Ecosystem            from './src/Ecosystem.jsx'
+import SurvivalScorePage    from './src/OrbitMetrics.jsx'
+import ThreatScannerPage    from './src/ThreatScanner.jsx'
+import SolarPulsePage       from './src/SolarPulse.jsx'
+import IntelligencePanelsDemo from './src/IntelligencePanels.jsx'
+import ReactorDemo          from './src/SurvivalReactor.jsx'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -25,6 +26,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/score"        element={<SurvivalScorePage />} />
         <Route path="/threat"       element={<ThreatScannerPage />} />
         <Route path="/pulse"        element={<SolarPulsePage />} />
+        <Route path="/design-system" element={<IntelligencePanelsDemo />} />
         <Route path="/reactor-demo" element={<ReactorDemo />} />
       </Routes>
     </BrowserRouter>
