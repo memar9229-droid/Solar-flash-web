@@ -1,4 +1,4 @@
-    /**
+/**
  * api/subscribe.js — Solar Flash Mailchimp Integration
  * Vercel Serverless Function
  *
@@ -86,5 +86,3 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Server error" });
   }
 }
-
-    
