@@ -11,6 +11,7 @@ import AppHub                    from './src/AppHub.jsx'
 import TokenIntelligence         from './src/TokenIntelligence.jsx'
 import NarrativeRadar            from './src/NarrativeRadar.jsx'
 import SmartMoneyIntelligence    from './src/SmartMoneyIntelligence.jsx'
+import OpportunityScanner        from './src/OpportunityScanner.jsx'
 import SurvivalScorePage         from './src/OrbitMetrics.jsx'
 import ThreatScannerPage         from './src/ThreatScanner.jsx'
 import SolarPulsePage            from './src/SolarPulse.jsx'
@@ -26,6 +27,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/token"         element={<TokenIntelligence />} />
         <Route path="/narrative"     element={<NarrativeRadar />} />
         <Route path="/smart-money"   element={<SmartMoneyIntelligence />} />
+        <Route path="/scanner"       element={<OpportunityScanner />} />
         <Route path="/report"        element={<ReportCard />} />
         <Route path="/dashboard"     element={<Dashboard />} />
         <Route path="/litepaper"     element={<Litepaper />} />
