@@ -1,8 +1,6 @@
-    /**
- * api/helius.js — Helius RPC Secure Proxy
- * Vercel Serverless Function
- * API key stays server-side — never exposed to browser
- */
+    // Uses Supabase REST API directly via fetch — no SDK needed
+// Works in all Vercel runtimes without extra dependencies
+
 export const config = { maxDuration: 30 };
 
 export default async function handler(req, res) {
@@ -24,15 +22,14 @@ export default async function handler(req, res) {
     "getAssetsByOwner","getAssetBatch","searchAssets","getTokenAccounts",
   ];
   if (!ALLOWED.includes(method)) {
-    return res.status(403).json({ error: `Method '${method}' not permitted via proxy` });
+    return res.status(403).json({ error: `Method not permitted` });
   }
 
-  const CACHE_TIMES = {
-    getBalance: "s-maxage=30,stale-while-revalidate=60",
-    getTokenAccountsByOwner: "s-maxage=60,stale-while-revalidate=120",
-    getTokenLargestAccounts: "s-maxage=300,stale-while-revalidate=600",
-    getAccountInfo: "s-maxage=300,stale-while-revalidate=600",
-    getAsset: "s-maxage=600,stale-while-revalidate=1200",
+  const CACHE = {
+    getBalance: "s-maxage=30",
+    getTokenAccountsByOwner: "s-maxage=60",
+    getAccountInfo: "s-maxage=300",
+    getAsset: "s-maxage=600",
   };
 
   try {
@@ -43,10 +40,9 @@ export default async function handler(req, res) {
     });
     if (!r.ok) return res.status(r.status).json({ error: `Helius ${r.status}` });
     const data = await r.json();
-    res.setHeader("Cache-Control", CACHE_TIMES[method] || "s-maxage=60");
+    res.setHeader("Cache-Control", CACHE[method] || "s-maxage=60");
     return res.status(200).json(data);
   } catch (e) {
-    console.error("Helius proxy:", e);
     return res.status(500).json({ error: "Proxy error", details: e.message });
   }
 }
