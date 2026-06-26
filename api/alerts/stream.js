@@ -1,67 +1,55 @@
-    /**
- * api/alerts/stream.js — Server-Sent Events for Smart Alerts
- * Polls Supabase for new alerts and streams to frontend
- * Frontend connects once and receives real-time updates
- */
-import { createClient } from "@supabase/supabase-js";
-export const config = { maxDuration: 55 }; // Vercel max = 60s on Pro, use 55 for safety
+    // Uses Supabase REST API directly via fetch — no SDK needed
+// Works in all Vercel runtimes without extra dependencies
 
-const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+export const config = { maxDuration: 55 };
 
-export default async function handler(req,res) {
-  // SSE headers
-  res.setHeader("Content-Type","text/event-stream");
-  res.setHeader("Cache-Control","no-cache, no-transform");
-  res.setHeader("Connection","keep-alive");
-  res.setHeader("Access-Control-Allow-Origin","*");
-  res.setHeader("X-Accel-Buffering","no");
+export default async function handler(req, res) {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("X-Accel-Buffering", "no");
+
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
 
   const send = (event, data) => {
     res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
   };
 
-  // Send initial batch of 20 most recent alerts
+  const fetchAlerts = async (since = null) => {
+    let url = `${SUPABASE_URL}/rest/v1/alerts?select=*&is_active=eq.true&order=created_at.desc&limit=20`;
+    if (since) url += `&created_at=gt.${since}`;
+    const r = await fetch(url, {
+      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` },
+    });
+    if (!r.ok) return [];
+    return await r.json();
+  };
+
+  // Initial batch
   try {
-    const {data:initial} = await sb.from("alerts")
-      .select("*").eq("is_active",true)
-      .order("created_at",{ascending:false}).limit(20);
-    send("init", {alerts: initial||[], timestamp: new Date().toISOString()});
+    const initial = await fetchAlerts();
+    send("init", { alerts: initial, timestamp: new Date().toISOString() });
   } catch(e) {
-    send("error", {message:"Failed to load initial alerts"});
+    send("init", { alerts: [], timestamp: new Date().toISOString() });
   }
 
-  // Poll for new alerts every 15 seconds
   let lastCheck = new Date().toISOString();
   const interval = setInterval(async () => {
     try {
-      const {data:newAlerts} = await sb.from("alerts")
-        .select("*").eq("is_active",true)
-        .gt("created_at", lastCheck)
-        .order("created_at",{ascending:false}).limit(10);
-
+      const newAlerts = await fetchAlerts(lastCheck);
       if (newAlerts && newAlerts.length > 0) {
         lastCheck = newAlerts[0].created_at;
-        send("alerts", {alerts: newAlerts, timestamp: new Date().toISOString()});
+        send("alerts", { alerts: newAlerts, timestamp: new Date().toISOString() });
       } else {
-        send("heartbeat", {timestamp: new Date().toISOString()});
+        send("heartbeat", { timestamp: new Date().toISOString() });
       }
-    } catch(e) {
-      console.warn("SSE poll error:", e.message);
-    }
+    } catch(e) {}
   }, 15000);
 
-  // Clean up on client disconnect
-  req.on("close", () => {
-    clearInterval(interval);
-    res.end();
-  });
-
-  // Vercel will close after maxDuration — client should reconnect
-  setTimeout(() => {
-    clearInterval(interval);
-    send("reconnect", {message:"Please reconnect"});
-    res.end();
-  }, 54000);
+  req.on("close", () => { clearInterval(interval); res.end(); });
+  setTimeout(() => { clearInterval(interval); send("reconnect", {}); res.end(); }, 54000);
 }
 
     
