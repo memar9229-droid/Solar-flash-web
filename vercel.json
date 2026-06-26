@@ -1,25 +1,52 @@
-{
+    {
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/(.*)",     "destination": "/index.html" }
-  ],
-  "headers": [
     {
       "source": "/api/(.*)",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin",  "value": "https://gosolarflash.com" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
-      ]
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/narratives",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/alerts",
+      "schedule": "0 * * * *"
     }
   ],
   "functions": {
-    "api/helius.js":              { "maxDuration": 30 },
-    "api/token/scan.js":          { "maxDuration": 30 },
-    "api/narratives.js":          { "maxDuration": 10 },
-    "api/smart-money/sectors.js": { "maxDuration": 10 },
-    "api/smart-money/clusters.js":{ "maxDuration": 10 },
-    "api/alerts/stream.js":       { "maxDuration": 55 },
-    "api/webhooks/helius.js":     { "maxDuration": 15 }
+    "api/helius.js": {
+      "maxDuration": 30
+    },
+    "api/token/scan.js": {
+      "maxDuration": 30
+    },
+    "api/narratives.js": {
+      "maxDuration": 10
+    },
+    "api/smart-money/sectors.js": {
+      "maxDuration": 10
+    },
+    "api/smart-money/clusters.js": {
+      "maxDuration": 10
+    },
+    "api/alerts/stream.js": {
+      "maxDuration": 55
+    },
+    "api/webhooks/helius.js": {
+      "maxDuration": 15
+    },
+    "api/cron/narratives.js": {
+      "maxDuration": 60
+    },
+    "api/cron/alerts.js": {
+      "maxDuration": 30
+    }
   }
 }
+    
