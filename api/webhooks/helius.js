@@ -1,28 +1,35 @@
-    /**
- * api/services/helius.js
- * Clean Helius RPC service
- */
-import { httpPost, log } from "../lib/http.js";
+    export const config = { maxDuration: 15 };
 
-const RPC_URL = () => {
-  const k = process.env.HELIUS_API_KEY;
-  if (!k) throw new Error("HELIUS_API_KEY not set");
-  return `https://mainnet.helius-rpc.com/?api-key=${k}`;
-};
+export default async function handler(req, res) {
+  if (req.method!=="POST") return res.status(405).end();
+  const secret = process.env.HELIUS_WEBHOOK_SECRET;
+  if (secret && req.headers["authorization"]!==`Bearer ${secret}`) return res.status(401).json({error:"Unauthorized"});
 
-export async function rpc(method, params) {
-  log("info", "Helius RPC", { method });
-  const r = await httpPost(RPC_URL(), { jsonrpc:"2.0", id:1, method, params });
-  if (!r.ok) throw new Error(`Helius RPC ${method} failed: ${r.status}`);
-  const data = await r.json();
-  if (data.error) throw new Error(`Helius RPC error: ${data.error.message}`);
-  return data.result;
+  const SB_URL = process.env.SUPABASE_URL;
+  const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
+  const txs    = Array.isArray(req.body)?req.body:[req.body];
+  const alerts = [];
+
+  for (const tx of txs) {
+    const usd = (tx.nativeTransfers||[]).reduce((s,t)=>s+(t.amount/1e9*185),0);
+    if (usd<10000) continue;
+    alerts.push({
+      type:tx.type==="SWAP"?"volume":"whale", severity:usd>=500000?"CRITICAL":usd>=250000?"HIGH":usd>=50000?"MEDIUM":"LOW",
+      token_symbol:tx.tokenTransfers?.[0]?.symbol||"SOL", chain:"Solana",
+      value_usd:Math.round(usd), confidence:Math.min(95,60+Math.floor(usd/10000)),
+      ai_summary:`$${(usd/1000).toFixed(0)}K detected on Solana`,
+      wallet_address:tx.feePayer||null, tx_signature:tx.signature,
+      source:"helius_webhook", dedupe_key:`helius_${tx.signature}`, is_active:true,
+    });
+  }
+
+  if (alerts.length) {
+    await fetch(`${SB_URL}/rest/v1/alerts`,{
+      method:"POST", headers:{"apikey":SB_KEY,"Authorization":`Bearer ${SB_KEY}`,"Content-Type":"application/json","Prefer":"resolution=ignore-duplicates"},
+      body:JSON.stringify(alerts),
+    });
+  }
+  return res.status(200).json({received:txs.length,alerts_created:alerts.length});
 }
-
-export const getBalance             = (address)  => rpc("getBalance",             [address]);
-export const getAccountInfo         = (mint)     => rpc("getAccountInfo",         [mint, {encoding:"jsonParsed"}]);
-export const getTokenLargestAccounts= (mint)     => rpc("getTokenLargestAccounts",[mint]).then(r=>r?.value??[]);
-export const getTokenAccountsByOwner= (owner)    => rpc("getTokenAccountsByOwner", [owner, {programId:"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"}, {encoding:"jsonParsed"}]);
-export const getAsset               = (mint)     => rpc("getAsset",               {id:mint, displayOptions:{showFungible:true}});
 
     
