@@ -1,19 +1,20 @@
-/**
- * api/smart-money/clusters.js
- */
-import { log }                    from "../lib/http.js";
-import { ok, err, handleOptions } from "../lib/respond.js";
-import { sbSelect }               from "../lib/supabase.js";
+    export default async function handler(req, res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  if (req.method === "OPTIONS") return res.status(200).end();
 
-export default async function handler(req, res) {
-  if (handleOptions(req, res)) return;
-  log("info", "GET /api/smart-money/clusters");
+  const SB_URL = process.env.SUPABASE_URL;
+  const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
 
   try {
-    const data = await sbSelect("wallet_clusters", "select=*&order=conviction.desc", true);
-    return ok(res, { clusters: data, updatedAt: data[0]?.calculated_at }, 3600);
+    const r = await fetch(`${SB_URL}/rest/v1/wallet_clusters?select=*&order=conviction.desc`, {
+      headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` }
+    });
+    const data = await r.json();
+    res.setHeader("Cache-Control", "s-maxage=3600");
+    return res.status(200).json({ clusters: data, updatedAt: data[0]?.calculated_at });
   } catch(e) {
-    log("error", "SM clusters failed", { error: e.message });
-    return err(res, "Failed to load clusters", 500, e.message);
+    return res.status(500).json({ error: e.message });
   }
 }
+
+    
