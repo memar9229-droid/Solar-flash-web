@@ -1,4 +1,4 @@
-/**
+    /**
  * SmartMoneyIntelligence.jsx — Solar Flash Phase 2
  * Smart Money Intelligence Engine V2
  * Route: /smart-money
@@ -14,7 +14,7 @@
  *   - Alpha Engine data exports
  */
 
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────
 const T = {
@@ -162,13 +162,89 @@ const DIST_STATUS = {
   "Aggressive Distribution":{ color:"#ff3535",              icon:"●",  label:"AGGRESSIVE DIST."      },
 };
 
+
+// ═══════════════════════════════════════════════════════════
+// NORMALIZATION LAYER
+// Every field from external APIs (DexScreener, Supabase, Helius)
+// is guaranteed to exist with a safe default after normalization.
+// Components NEVER receive raw API objects.
+// ═══════════════════════════════════════════════════════════
+
+function normalizeSector(raw, fallback = {}) {
+  return {
+    id:                 raw?.id ?? fallback.id ?? "unknown",
+    name:               raw?.name ?? fallback.name ?? "Unknown Sector",
+    icon:               raw?.icon ?? fallback.icon ?? "📊",
+    color:              raw?.color ?? fallback.color ?? "#ffd700",
+    smScore:            Number.isFinite(raw?.smScore) ? raw.smScore : (fallback.smScore ?? 50),
+    flow:               raw?.flow ?? fallback.flow ?? "Neutral",
+    accum:              raw?.accum ?? fallback.accum ?? "Neutral",
+    momentum:           raw?.momentum ?? fallback.momentum ?? "Stable",
+    change7d:           Number.isFinite(raw?.change7d) ? raw.change7d : (fallback.change7d ?? 0),
+    dominance:          Number.isFinite(raw?.dominance) ? raw.dominance : (fallback.dominance ?? 0),
+    risk:               raw?.risk ?? fallback.risk ?? "Medium",
+    topCluster:         raw?.topCluster ?? fallback.topCluster ?? "Unknown",
+    orbitalAngle:       Number.isFinite(raw?.orbitalAngle) ? raw.orbitalAngle : (fallback.orbitalAngle ?? 0),
+    activity:           raw?.activity ?? fallback.activity ?? "Low",
+    signal:             raw?.signal ?? fallback.signal ?? "No signal data available",
+    convictionScore:    Number.isFinite(raw?.convictionScore) ? raw.convictionScore : (fallback.convictionScore ?? 50),
+    capitalFlowScore:   Number.isFinite(raw?.capitalFlowScore) ? raw.capitalFlowScore : (fallback.capitalFlowScore ?? 50),
+    accumHistory:       raw?.accumHistory ?? fallback.accumHistory ?? "Stable",
+    distributionStatus: raw?.distributionStatus ?? fallback.distributionStatus ?? "Neutral",
+    riskScore:          Number.isFinite(raw?.riskScore) ? raw.riskScore : (fallback.riskScore ?? 30),
+    alphaScore:         Number.isFinite(raw?.alphaScore) ? raw.alphaScore : (fallback.alphaScore ?? 50),
+    weeklyDelta:        Number.isFinite(raw?.weeklyDelta) ? raw.weeklyDelta : (fallback.weeklyDelta ?? 0),
+  };
+}
+
+function normalizeSectors(rawArray, fallbackArray = []) {
+  if (!Array.isArray(rawArray)) return fallbackArray.map(f => normalizeSector(f));
+  return rawArray.map((raw, i) => normalizeSector(raw, fallbackArray[i] || fallbackArray.find(f => f.id === raw?.id) || {}));
+}
+
+function normalizeCluster(raw, fallback = {}) {
+  return {
+    id:         raw?.id ?? fallback.id ?? "unknown",
+    name:       raw?.name ?? fallback.name ?? "Unknown Cluster",
+    icon:       raw?.icon ?? fallback.icon ?? "⊙",
+    color:      raw?.color ?? fallback.color ?? "#ffd700",
+    size:       Number.isFinite(raw?.size) ? raw.size : (fallback.size ?? 0),
+    behavior:   raw?.behavior ?? fallback.behavior ?? "Neutral",
+    conviction: Number.isFinite(raw?.conviction) ? raw.conviction : (fallback.conviction ?? 50),
+    sectors:    Array.isArray(raw?.sectors) ? raw.sectors : (fallback.sectors ?? []),
+    desc:       raw?.desc ?? fallback.desc ?? "No description available",
+    signal:     raw?.signal ?? fallback.signal ?? "No signal data available",
+  };
+}
+
+function normalizeClusters(rawArray, fallbackArray = []) {
+  if (!Array.isArray(rawArray)) return fallbackArray.map(f => normalizeCluster(f));
+  return rawArray.map((raw, i) => normalizeCluster(raw, fallbackArray[i] || fallbackArray.find(f => f.id === raw?.id) || {}));
+}
+
+function safeIntel(intel) {
+  return {
+    avgSM:   Number.isFinite(intel?.avgSM)   ? intel.avgSM   : 50,
+    accum:   Number.isFinite(intel?.accum)   ? intel.accum   : 0,
+    distrib: Number.isFinite(intel?.distrib) ? intel.distrib : 0,
+    rising:  Number.isFinite(intel?.rising)  ? intel.rising  : 0,
+    overall: intel?.overall ?? "Neutral",
+    risk:    intel?.risk    ?? "Moderate",
+    flow:    intel?.flow    ?? "Neutral",
+  };
+}
+
 // ─── DERIVED INTELLIGENCE ─────────────────────────────────────
-function deriveIntelligence(sectors) {
-  const totalSM   = sectors.reduce((s,n) => s + n.smScore, 0);
-  const avgSM     = Math.round(totalSM / sectors.length);
-  const accum     = sectors.filter(n => n.smScore > 65).length;
-  const distrib   = sectors.filter(n => n.smScore < 40).length;
-  const rising    = sectors.filter(n => n.momentum === "Rising").length;
+function deriveIntelligence(sectorsRaw) {
+  const sectors   = Array.isArray(sectorsRaw) ? sectorsRaw : [];
+  if (sectors.length === 0) {
+    return { avgSM:50, accum:0, distrib:0, rising:0, overall:"Neutral", risk:"Moderate", flow:"Neutral" };
+  }
+  const totalSM   = sectors.reduce((s,n) => s + (Number.isFinite(n?.smScore) ? n.smScore : 50), 0);
+  const avgSM     = Math.round(totalSM / sectors.length) || 50;
+  const accum     = sectors.filter(n => (n?.smScore ?? 0) > 65).length;
+  const distrib   = sectors.filter(n => (n?.smScore ?? 0) < 40).length;
+  const rising    = sectors.filter(n => n?.momentum === "Rising").length;
 
   const overall   = avgSM >= 70 ? "Accumulation"
     : avgSM >= 50 ? "Neutral"
@@ -201,7 +277,7 @@ function generateAI(sectors, intel) {
       : intel.risk === "Moderate"
       ? "Risk assessment: MODERATE. Some distribution in fringe sectors. Concentration increasing in AI narrative. Monitor for rotation acceleration."
       : "Risk assessment: ELEVATED. Multiple distribution signals active. Smart money reducing broad exposure. Position sizing discipline recommended.",
-    conclusion: `Intelligence conclusion: Market attention is concentrating. AI Infrastructure and DePIN are absorbing the majority of smart capital inflow. Emerging signals in Gaming suggest early-cycle positioning. Overall smart money posture: ${intel.overall.toUpperCase()}.`,
+    conclusion: `Intelligence conclusion: Market attention is concentrating. AI Infrastructure and DePIN are absorbing the majority of smart capital inflow. Emerging signals in Gaming suggest early-cycle positioning. Overall smart money posture: ${(intel.overall||"Neutral").toUpperCase()}.`,
   };
 }
 
@@ -280,7 +356,7 @@ function SmartMoneyCore({ intel, sectors }) {
         {/* Energy field */}
         <div style={{
           position:"absolute", inset:"12px", borderRadius:"50%",
-          boxShadow:`0 0 ${40*energyScale}px ${fc.glow}, 0 0 ${80*energyScale}px ${fc.glow.replace(".5",",.1").replace(".4",",.1").replace(".2",",.05")}`,
+          boxShadow:`0 0 ${40*energyScale}px ${fc.glow}, 0 0 ${80*energyScale}px ${(fc.glow||"rgba(255,180,0,.4)").replace(".5",",.1").replace(".4",",.1").replace(".2",",.05")}`,
           animation:"sm-breathe 4s ease-in-out infinite", pointerEvents:"none",
           opacity: 0.5 + energyScale * 0.5,
         }}/>
@@ -304,7 +380,7 @@ function SmartMoneyCore({ intel, sectors }) {
         {/* Accumulation status */}
         <div style={{ display:"flex", alignItems:"center", gap:".5rem", padding:".35rem 1rem", borderRadius:"50px", border:`1px solid ${ac.color}35`, background:`${ac.color}0a` }}>
           <span style={{ fontFamily:T.font, fontSize:".65rem", color:ac.color }}>{ac.icon}</span>
-          <span style={{ fontFamily:T.font, fontSize:".38rem", color:ac.color, letterSpacing:".16em" }}>{intel.overall.toUpperCase()}</span>
+          <span style={{ fontFamily:T.font, fontSize:".38rem", color:ac.color, letterSpacing:".16em" }}>{(intel.overall||"Neutral").toUpperCase()}</span>
         </div>
         {/* Stats row */}
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:".5rem", width:"100%" }}>
@@ -435,7 +511,7 @@ function CapitalOrbitNetwork({ sectors, onSelect, selected }) {
             <text x={s.x} y={s.y + r + 14} textAnchor="middle"
               fill={isSelected ? "#fff" : "rgba(255,255,255,.55)"} fontSize="8"
               fontFamily="'Orbitron',monospace" letterSpacing="0.5">
-              {s.name.split(" ")[0].toUpperCase()}
+              {(s.name||"?").split(" ")[0].toUpperCase()}
             </text>
             {/* Flow indicator dot */}
             <circle cx={s.x+r-4} cy={s.y-r+4} r={4} fill={fc.color}>
@@ -476,7 +552,7 @@ function SectorDetail({ sector }) {
       {/* Status row */}
       <div style={{ display:"flex", gap:".5rem", marginBottom:"1rem", flexWrap:"wrap" }}>
         <span style={{ padding:".2rem .65rem", borderRadius:"50px", border:`1px solid ${fc.color}44`, background:`${fc.color}0e`, fontFamily:T.font, fontSize:".32rem", letterSpacing:".16em", color:fc.color }}>{fc.label}</span>
-        <span style={{ padding:".2rem .65rem", borderRadius:"50px", border:`1px solid ${ac.color}35`, background:`${ac.color}0a`, fontFamily:T.font, fontSize:".32rem", letterSpacing:".14em", color:ac.color }}>{ac.icon} {sector.accum.toUpperCase()}</span>
+        <span style={{ padding:".2rem .65rem", borderRadius:"50px", border:`1px solid ${ac.color}35`, background:`${ac.color}0a`, fontFamily:T.font, fontSize:".32rem", letterSpacing:".14em", color:ac.color }}>{ac.icon} {(sector.accum||"Neutral").toUpperCase()}</span>
         <span style={{ padding:".2rem .65rem", borderRadius:"50px", border:`1px solid ${rc.color}35`, background:`${rc.color}0a`, fontFamily:T.font, fontSize:".32rem", letterSpacing:".14em", color:rc.color }}>{rc.label}</span>
       </div>
 
@@ -522,7 +598,7 @@ function MobileSectorCard({ sector }) {
           <div style={{ fontFamily:T.font, fontSize:".6rem", fontWeight:700, color:open?"#fff":sector.color, letterSpacing:".1em", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{sector.name}</div>
           <div style={{ display:"flex", alignItems:"center", gap:".4rem", marginTop:".25rem", flexWrap:"wrap" }}>
             <span style={{ fontFamily:T.font, fontSize:".28rem", color:`${fc.color}cc`, padding:".1rem .45rem", borderRadius:"4px", background:`${fc.color}0e`, border:`1px solid ${fc.color}28` }}>{fc.label}</span>
-            <span style={{ fontFamily:T.font, fontSize:".28rem", color:`${ac.color}cc`, padding:".1rem .45rem", borderRadius:"4px", background:`${ac.color}0a`, border:`1px solid ${ac.color}22` }}>{ac.icon} {sector.accum.split(" ")[0].toUpperCase()}</span>
+            <span style={{ fontFamily:T.font, fontSize:".28rem", color:`${ac.color}cc`, padding:".1rem .45rem", borderRadius:"4px", background:`${ac.color}0a`, border:`1px solid ${ac.color}22` }}>{ac.icon} {(sector.accum||"Neutral").split(" ")[0].toUpperCase()}</span>
           </div>
         </div>
         <ScoreRing score={sector.smScore} color={sector.color} size={56}/>
@@ -586,7 +662,7 @@ function ClusterConstellation({ clusters }) {
               <text x={pos.x} y={pos.y-6} textAnchor="middle" fontSize="14">{c.icon}</text>
               {/* Name */}
               <text x={pos.x} y={pos.y+8} textAnchor="middle" fill={c.color} fontSize="7.5" fontFamily="'Orbitron',monospace" fontWeight="700" letterSpacing="0.3">
-                {c.name.split(" ")[0].toUpperCase()}
+                {(c.name||"?").split(" ")[0].toUpperCase()}
               </text>
               {/* Wallets */}
               <text x={pos.x} y={pos.y+18} textAnchor="middle" fill="rgba(255,255,255,.4)" fontSize="7" fontFamily="'Rajdhani',sans-serif">
@@ -611,11 +687,11 @@ function ClusterConstellation({ clusters }) {
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:".5rem" }}>
               <div style={{ display:"flex", alignItems:"center", gap:".5rem" }}>
                 <span style={{ fontFamily:T.font, fontSize:".65rem", color:c.color }}>{c.icon}</span>
-                <span style={{ fontFamily:T.font, fontSize:".48rem", fontWeight:700, color:c.color, letterSpacing:".12em" }}>{c.name.toUpperCase()}</span>
+                <span style={{ fontFamily:T.font, fontSize:".48rem", fontWeight:700, color:c.color, letterSpacing:".12em" }}>{(c.name||"UNKNOWN").toUpperCase()}</span>
               </div>
               <div style={{ display:"flex", alignItems:"center", gap:".5rem" }}>
                 <span style={{ fontFamily:T.body, fontSize:".82rem", color:"rgba(255,255,255,.4)" }}>{c.size} wallets</span>
-                <span style={{ padding:".12rem .5rem", borderRadius:"50px", border:`1px solid ${c.color}35`, background:`${c.color}0a`, fontFamily:T.font, fontSize:".3rem", letterSpacing:".14em", color:c.color }}>{c.behavior.toUpperCase()}</span>
+                <span style={{ padding:".12rem .5rem", borderRadius:"50px", border:`1px solid ${c.color}35`, background:`${c.color}0a`, fontFamily:T.font, fontSize:".3rem", letterSpacing:".14em", color:c.color }}>{(c.behavior||"Neutral").toUpperCase()}</span>
               </div>
             </div>
             <p style={{ fontFamily:T.body, fontSize:".88rem", color:"rgba(255,255,255,.48)", lineHeight:1.65, letterSpacing:".04em" }}>{c.signal}</p>
@@ -669,7 +745,7 @@ function CapitalRotation() {
               {/* From */}
               <div style={{ display:"flex", alignItems:"center", gap:".4rem", minWidth:"80px" }}>
                 <span style={{ fontSize:".9rem" }}>{from.icon}</span>
-                <span style={{ fontFamily:T.font, fontSize:".38rem", color:from.color, letterSpacing:".08em" }}>{from.name.split(" ")[0]}</span>
+                <span style={{ fontFamily:T.font, fontSize:".38rem", color:from.color, letterSpacing:".08em" }}>{(from.name||"?").split(" ")[0]}</span>
               </div>
               {/* Arrow stream */}
               <div style={{ flex:1, position:"relative", height:"6px", borderRadius:"99px", background:"rgba(255,255,255,.05)" }}>
@@ -681,7 +757,7 @@ function CapitalRotation() {
               </div>
               {/* To */}
               <div style={{ display:"flex", alignItems:"center", gap:".4rem", minWidth:"80px", justifyContent:"flex-end" }}>
-                <span style={{ fontFamily:T.font, fontSize:".38rem", color:to.color, letterSpacing:".08em" }}>{to.name.split(" ")[0]}</span>
+                <span style={{ fontFamily:T.font, fontSize:".38rem", color:to.color, letterSpacing:".08em" }}>{(to.name||"?").split(" ")[0]}</span>
                 <span style={{ fontSize:".9rem" }}>{to.icon}</span>
               </div>
               {/* Strength */}
@@ -770,7 +846,7 @@ function AccumDistributionModule({ sectors }) {
             {narrs.map(s => (
               <div key={s.id} style={{ display:"flex", alignItems:"center", gap:".4rem", padding:".3rem .75rem", borderRadius:"7px", border:`1px solid ${s.color}25`, background:`${s.color}08` }}>
                 <span style={{ fontSize:".85rem" }}>{s.icon}</span>
-                <span style={{ fontFamily:T.font, fontSize:".36rem", color:s.color, letterSpacing:".1em" }}>{s.name.split(" ")[0].toUpperCase()}</span>
+                <span style={{ fontFamily:T.font, fontSize:".36rem", color:s.color, letterSpacing:".1em" }}>{(s.name||"?").split(" ")[0].toUpperCase()}</span>
                 <span style={{ fontFamily:T.font, fontSize:".52rem", fontWeight:700, color:`${s.color}cc` }}>{s.convictionScore||0}</span>
               </div>
             ))}
@@ -889,9 +965,59 @@ function AlphaEnginePanel({ sectors, intel }) {
   );
 }
 
-export default function SmartMoneyIntelligence() {
-  const [sectors,   setSectors]   = useState(SECTORS);   // seeded fallback
-  const [clusters,  setClusters]  = useState(CLUSTERS);  // seeded fallback
+
+// ═══════════════════════════════════════════════════════════
+// ERROR BOUNDARY
+// Catches any rendering error in Smart Money and shows a
+// recoverable fallback UI instead of crashing the whole app.
+// ═══════════════════════════════════════════════════════════
+class SmartMoneyErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    console.error("[SmartMoney] Render error caught by boundary:", error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          minHeight: "100vh", background: "#050403", color: "#fff",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexDirection: "column", gap: "1rem", fontFamily: "'Orbitron',monospace",
+          padding: "2rem", textAlign: "center",
+        }}>
+          <div style={{ fontSize: "2.5rem" }}>⚠️</div>
+          <div style={{ fontSize: ".7rem", letterSpacing: ".1em", color: "#ffd700" }}>
+            SMART MONEY INTELLIGENCE — TEMPORARY ISSUE
+          </div>
+          <p style={{ fontFamily: "'Rajdhani',sans-serif", fontSize: "1rem", color: "rgba(255,255,255,.5)", maxWidth: "420px" }}>
+            We hit a snag loading live data. This has been logged. Try refreshing the page.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              padding: ".7rem 1.6rem", borderRadius: "8px", border: "1px solid rgba(255,180,0,.4)",
+              background: "rgba(255,180,0,.08)", color: "#ffd700", fontFamily: "'Orbitron',monospace",
+              fontSize: ".4rem", letterSpacing: ".15em", cursor: "pointer",
+            }}
+          >
+            ↺ RELOAD PAGE
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function SmartMoneyIntelligenceInner() {
+  const [sectors,   setSectors]   = useState(() => normalizeSectors(SECTORS, SECTORS));   // seeded fallback, normalized
+  const [clusters,  setClusters]  = useState(() => normalizeClusters(CLUSTERS, CLUSTERS));  // seeded fallback, normalized
   const [dataSource,setDataSource]= useState("seeded");
   const [lastUpdate,setLastUpdate]= useState(null);
   const [selected,  setSelected]  = useState(null);
@@ -907,10 +1033,16 @@ export default function SmartMoneyIntelligence() {
         if (d.sectors && d.sectors.length > 0) {
           // Map DB fields to component format
           const mappedSectors = d.sectors.map(s => {
-            const base = SECTORS.find(x => x.id === s.sector) || {};
+            const base = SECTORS.find(x =>
+              x.id?.toLowerCase() === String(s.sector||"").toLowerCase() ||
+              x.name?.toLowerCase() === String(s.sector||"").toLowerCase()
+            ) || {};
             return {
               ...base,
-              id:              s.sector,
+              id:              base.id || String(s.sector||"unknown").toLowerCase().replace(/\s+/g,""),
+              name:            base.name || s.sector || "Unknown",
+              icon:            base.icon || "📊",
+              color:           base.color || T.gold,
               smScore:         s.sm_score,
               flow:            s.flow,
               accum:           s.accum_status === "Increasing" ? "Accumulation"
@@ -932,17 +1064,25 @@ export default function SmartMoneyIntelligence() {
               weeklyDelta:        parseFloat(s.change_7d || 0),
             };
           });
-          setSectors(mappedSectors);
+          setSectors(normalizeSectors(mappedSectors, SECTORS));
           setDataSource(d.is_real ? "live" : "seeded");
           if (d.last_updated) setLastUpdate(new Date(d.last_updated));
         }
         if (d.clusters && d.clusters.length > 0) {
           const mappedClusters = d.clusters.map(c => {
             const base = CLUSTERS.find(x => x.id === c.cluster_id) || {};
-            return { ...base, id:c.cluster_id, name:c.name, size:c.wallet_count,
-              behavior:c.behavior, conviction:c.conviction, signal:c.signal_text };
+            return { ...base,
+              id:        c.cluster_id || base.id || "unknown",
+              name:      c.name || base.name || "Unknown Cluster",
+              icon:      base.icon || c.icon || "⊙",
+              color:     base.color || T.gold,
+              sectors:   base.sectors || c.top_sectors || [],
+              size:      c.wallet_count,
+              behavior:  c.behavior,
+              conviction:c.conviction,
+              signal:    c.signal_text };
           });
-          setClusters(mappedClusters);
+          setClusters(normalizeClusters(mappedClusters, CLUSTERS));
         }
       })
       .catch(e => console.warn("[SmartMoney] API fetch failed, using seeded data:", e));
@@ -961,7 +1101,7 @@ export default function SmartMoneyIntelligence() {
     return () => clearInterval(id);
   }, []);
 
-  const intel = useMemo(() => deriveIntelligence(sectors), [sectors]);
+  const intel = useMemo(() => safeIntel(deriveIntelligence(sectors)), [sectors]);
   const ai    = useMemo(() => generateAI(sectors, intel),  [sectors, intel]);
   const fc    = FLOW_COLORS[intel.flow] || FLOW_COLORS.Neutral;
 
@@ -1039,9 +1179,9 @@ export default function SmartMoneyIntelligence() {
               </p>
             </div>
             {/* Overall risk badge */}
-            <div style={{ padding:".55rem 1.2rem", borderRadius:"10px", border:`1px solid ${RISK_META[intel.risk].color}35`, background:`${RISK_META[intel.risk].color}0a`, display:"flex", alignItems:"center", gap:".6rem" }}>
-              <LiveDot color={RISK_META[intel.risk].color} size={7}/>
-              <span style={{ fontFamily:T.font, fontSize:".44rem", color:RISK_META[intel.risk].color, letterSpacing:".2em" }}>MARKET RISK: {intel.risk.toUpperCase()}</span>
+            <div style={{ padding:".55rem 1.2rem", borderRadius:"10px", border:`1px solid ${(RISK_META[intel.risk]||RISK_META.Moderate||{color:T.gold}).color}35`, background:`${(RISK_META[intel.risk]||RISK_META.Moderate||{color:T.gold}).color}0a`, display:"flex", alignItems:"center", gap:".6rem" }}>
+              <LiveDot color={(RISK_META[intel.risk]||RISK_META.Moderate||{color:T.gold}).color} size={7}/>
+              <span style={{ fontFamily:T.font, fontSize:".44rem", color:(RISK_META[intel.risk]||RISK_META.Moderate||{color:T.gold}).color, letterSpacing:".2em" }}>MARKET RISK: {(intel.risk||"Moderate").toUpperCase()}</span>
             </div>
           </div>
         </div>
@@ -1050,7 +1190,7 @@ export default function SmartMoneyIntelligence() {
         <div className="sm-strip" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,80px),1fr))", gap:".7rem", marginBottom:"1.8rem" }}>
           {[
             { label:"SM SCORE",     val:`${intel.avgSM}/100`,     color:fc.color,  sub:"composite"    },
-            { label:"CAPITAL FLOW", val:fc.label.replace(" ","↵"), color:fc.color,  sub:"current state" },
+            { label:"CAPITAL FLOW", val:(fc.label||"").replace(" ","↵"), color:fc.color,  sub:"current state" },
             { label:"ACCUMULATING", val:`${intel.accum} sectors`,  color:T.ok,      sub:"smart money"   },
             { label:"DISTRIBUTING", val:`${intel.distrib} sectors`,color:T.danger,  sub:"outflow signal" },
           ].map((s,i) => (
@@ -1280,3 +1420,16 @@ export default function SmartMoneyIntelligence() {
     </div>
   );
 }
+
+// ═══════════════════════════════════════════════════════════
+// DEFAULT EXPORT — wrapped in ErrorBoundary
+// ═══════════════════════════════════════════════════════════
+export default function SmartMoneyIntelligence() {
+  return (
+    <SmartMoneyErrorBoundary>
+      <SmartMoneyIntelligenceInner />
+    </SmartMoneyErrorBoundary>
+  );
+}
+
+    
