@@ -1,4 +1,4 @@
-/**
+    /**
  * NarrativeRadar.jsx — Solar Flash Phase 2
  * Narrative Intelligence Engine V2
  * Route: /narrative
@@ -12,7 +12,7 @@
  *   - Alpha Engine data exports
  */
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────
 const T = {
@@ -76,6 +76,57 @@ function confidenceBand(score) {
 
 // ─── NARRATIVE DATA ───────────────────────────────────────────
 // Seeded deterministically — ready for real API data in V2
+
+// ═══════════════════════════════════════════════════════════
+// NORMALIZATION LAYER
+// Every narrative object — whether from seed data or the live
+// /api/narratives endpoint — is guaranteed to have every field
+// the UI references, with safe defaults. Components never see
+// raw/partial API objects.
+// ═══════════════════════════════════════════════════════════
+
+function normalizeNarrative(raw, fallback = {}) {
+  const num = (v, d) => (Number.isFinite(v) ? v : (Number.isFinite(fallback[d]) ? fallback[d] : 0));
+  return {
+    id:                raw?.id                ?? fallback.id                ?? "unknown",
+    name:              raw?.name               ?? fallback.name              ?? "Unknown Narrative",
+    category:          raw?.category           ?? fallback.category          ?? "General",
+    icon:              raw?.icon                ?? fallback.icon              ?? "📊",
+    color:             raw?.color               ?? fallback.color             ?? T.gold,
+    score:             Number.isFinite(raw?.score) ? raw.score : (fallback.score ?? 50),
+    heat:              raw?.heat                ?? fallback.heat              ?? "Warm",
+    momentum:          raw?.momentum            ?? fallback.momentum          ?? "Stable",
+    lifecycle:         raw?.lifecycle           ?? fallback.lifecycle         ?? "Growth",
+    lifecycleV2:       raw?.lifecycleV2         ?? raw?.lifecycle             ?? fallback.lifecycleV2 ?? "Growth",
+    capitalFlow:       Number.isFinite(raw?.capitalFlow) ? raw.capitalFlow : (fallback.capitalFlow ?? 0),
+    volume7d:          Number.isFinite(raw?.volume7d) ? raw.volume7d : (fallback.volume7d ?? 0),
+    dominance:         Number.isFinite(raw?.dominance) ? raw.dominance : (fallback.dominance ?? 0),
+    change7d:          Number.isFinite(raw?.change7d) ? raw.change7d : (fallback.change7d ?? 0),
+    description:       raw?.description         ?? fallback.description      ?? "",
+    topTokens:         Array.isArray(raw?.topTokens) ? raw.topTokens : (fallback.topTokens ?? []),
+    signal:            raw?.signal              ?? fallback.signal           ?? "No signal data available",
+    confidenceScore:   Number.isFinite(raw?.confidenceScore)  ? raw.confidenceScore  : (fallback.confidenceScore ?? 50),
+    persistenceScore:  Number.isFinite(raw?.persistenceScore) ? raw.persistenceScore : (fallback.persistenceScore ?? 50),
+    engagementScore:   Number.isFinite(raw?.engagementScore)  ? raw.engagementScore  : (fallback.engagementScore ?? 50),
+    capitalFlowScore:  Number.isFinite(raw?.capitalFlowScore) ? raw.capitalFlowScore : (fallback.capitalFlowScore ?? 50),
+    emergingStatus:    raw?.emergingStatus      ?? fallback.emergingStatus    ?? "Emerging",
+    rotation:          raw?.rotation && typeof raw.rotation === "object" ? raw.rotation : (fallback.rotation ?? null),
+    ai: {
+      summary:            raw?.ai?.summary            ?? fallback?.ai?.summary            ?? "Analysis pending.",
+      risks:              raw?.ai?.risks              ?? fallback?.ai?.risks              ?? "Risk analysis pending.",
+      outlook:            raw?.ai?.outlook            ?? fallback?.ai?.outlook            ?? "Outlook pending.",
+      confidenceAnalysis: raw?.ai?.confidenceAnalysis ?? fallback?.ai?.confidenceAnalysis ?? "Confidence analysis pending.",
+    },
+  };
+}
+
+function normalizeNarratives(rawArray, fallbackArray = []) {
+  if (!Array.isArray(rawArray)) return (fallbackArray || []).map(f => normalizeNarrative(f));
+  return rawArray.map((raw, i) =>
+    normalizeNarrative(raw, fallbackArray.find(f => f.id === raw?.id) || fallbackArray[i] || {})
+  );
+}
+
 function seedNarratives() {
   return [
     {
@@ -647,7 +698,7 @@ function CapitalFlow({ narratives }) {
               <div style={{ display:"flex", alignItems:"center", gap:".5rem", minWidth:0 }}>
                 <span style={{ fontSize:".85rem", flexShrink:0 }}>{n.icon}</span>
                 <span style={{ fontFamily:T.font, fontSize:".38rem", color:"rgba(255,255,255,.6)", letterSpacing:".08em", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                  {n.name.split(" ")[0].toUpperCase()}
+                  {(n.name||"?").split(" ")[0].toUpperCase()}
                 </span>
               </div>
               {/* Bar */}
@@ -711,7 +762,7 @@ function LifecycleOverview({ narratives }) {
                 {narrs.map(n => (
                   <span key={n.id} style={{ display:"flex", alignItems:"center", gap:".3rem", padding:".2rem .65rem", borderRadius:"6px", border:`1px solid ${n.color}28`, background:`${n.color}0a` }}>
                     <span style={{ fontSize:".75rem" }}>{n.icon}</span>
-                    <span style={{ fontFamily:T.font, fontSize:".32rem", color:n.color, letterSpacing:".1em" }}>{n.name.split(" ")[0].toUpperCase()}</span>
+                    <span style={{ fontFamily:T.font, fontSize:".32rem", color:n.color, letterSpacing:".1em" }}>{(n.name||"?").split(" ")[0].toUpperCase()}</span>
                   </span>
                 ))}
               </div>
@@ -918,7 +969,7 @@ function LifecycleV2Module({ narratives }) {
               {narrs.map(n => (
                 <span key={n.id} style={{ display:"flex", alignItems:"center", gap:".3rem", padding:".25rem .7rem", borderRadius:"6px", border:`1px solid ${n.color}28`, background:`${n.color}0a` }}>
                   <span style={{ fontSize:".75rem" }}>{n.icon}</span>
-                  <span style={{ fontFamily:T.font, fontSize:".34rem", color:n.color, letterSpacing:".1em" }}>{n.name.split(" ")[0].toUpperCase()}</span>
+                  <span style={{ fontFamily:T.font, fontSize:".34rem", color:n.color, letterSpacing:".1em" }}>{(n.name||"?").split(" ")[0].toUpperCase()}</span>
                 </span>
               ))}
             </div>
@@ -954,7 +1005,7 @@ function RotationEngineV2({ narratives }) {
                 {fromN ? (
                   <div style={{ display:"flex", alignItems:"center", gap:".4rem", minWidth:"80px" }}>
                     <span style={{ fontSize:"1rem" }}>{fromN.icon}</span>
-                    <span style={{ fontFamily:T.font, fontSize:".38rem", color:fromN.color, letterSpacing:".08em" }}>{fromN.name.split(" ")[0]}</span>
+                    <span style={{ fontFamily:T.font, fontSize:".38rem", color:fromN.color, letterSpacing:".08em" }}>{(fromN.name||"?").split(" ")[0]}</span>
                   </div>
                 ) : (
                   <span style={{ fontFamily:T.body, fontSize:".82rem", color:"rgba(255,255,255,.3)", minWidth:"80px" }}>New Capital</span>
@@ -968,7 +1019,7 @@ function RotationEngineV2({ narratives }) {
                 </div>
                 {/* To */}
                 <div style={{ display:"flex", alignItems:"center", gap:".4rem", minWidth:"80px", justifyContent:"flex-end" }}>
-                  <span style={{ fontFamily:T.font, fontSize:".38rem", color:toN.color, letterSpacing:".08em" }}>{toN.name.split(" ")[0]}</span>
+                  <span style={{ fontFamily:T.font, fontSize:".38rem", color:toN.color, letterSpacing:".08em" }}>{(toN.name||"?").split(" ")[0]}</span>
                   <span style={{ fontSize:"1rem" }}>{toN.icon}</span>
                 </div>
                 {/* Strength */}
@@ -985,7 +1036,7 @@ function RotationEngineV2({ narratives }) {
           {inflows.map(n=>(
             <div key={n.id} style={{ display:"flex", alignItems:"center", gap:".5rem", marginBottom:".4rem" }}>
               <span style={{ fontSize:".85rem" }}>{n.icon}</span>
-              <span style={{ fontFamily:T.body, fontSize:".88rem", color:"rgba(255,255,255,.6)" }}>{n.name.split(" ")[0]}</span>
+              <span style={{ fontFamily:T.body, fontSize:".88rem", color:"rgba(255,255,255,.6)" }}>{(n.name||"?").split(" ")[0]}</span>
               <span style={{ marginLeft:"auto", fontFamily:T.font, fontSize:".44rem", color:T.ok, fontWeight:700 }}>+{n.capitalFlow}B</span>
             </div>
           ))}
@@ -995,7 +1046,7 @@ function RotationEngineV2({ narratives }) {
           {outflows.map(n=>(
             <div key={n.id} style={{ display:"flex", alignItems:"center", gap:".5rem", marginBottom:".4rem" }}>
               <span style={{ fontSize:".85rem" }}>{n.icon}</span>
-              <span style={{ fontFamily:T.body, fontSize:".88rem", color:"rgba(255,255,255,.6)" }}>{n.name.split(" ")[0]}</span>
+              <span style={{ fontFamily:T.body, fontSize:".88rem", color:"rgba(255,255,255,.6)" }}>{(n.name||"?").split(" ")[0]}</span>
               <span style={{ marginLeft:"auto", fontFamily:T.font, fontSize:".44rem", color:T.danger, fontWeight:700 }}>{n.capitalFlow}B</span>
             </div>
           ))}
@@ -1090,9 +1141,60 @@ function AlphaIntegrationPanel({ narratives }) {
   );
 }
 
-export default function NarrativeRadar() {
-  const [narratives,  setNarratives] = useState(() => seedNarratives()); // seed = fallback
-  const [dataSource,  setDataSource] = useState("seeded"); // "seeded"|"live"
+
+// ═══════════════════════════════════════════════════════════
+// ERROR BOUNDARY
+// Catches any rendering error in Narrative Radar and shows a
+// recoverable fallback instead of crashing the whole app.
+// ═══════════════════════════════════════════════════════════
+class NarrativeRadarErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error, info) {
+    console.error("[NarrativeRadar] Render error caught by boundary:", error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          minHeight: "100vh", background: "#050403", color: "#fff",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexDirection: "column", gap: "1rem", fontFamily: "'Orbitron',monospace",
+          padding: "2rem", textAlign: "center",
+        }}>
+          <div style={{ fontSize: "2.5rem" }}>⚠️</div>
+          <div style={{ fontSize: ".7rem", letterSpacing: ".1em", color: "#ffd700" }}>
+            NARRATIVE RADAR — TEMPORARY ISSUE
+          </div>
+          <p style={{ fontFamily: "'Rajdhani',sans-serif", fontSize: "1rem", color: "rgba(255,255,255,.5)", maxWidth: "420px" }}>
+            We hit a snag loading live data. This has been logged. Try refreshing the page.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              padding: ".7rem 1.6rem", borderRadius: "8px", border: "1px solid rgba(255,180,0,.4)",
+              background: "rgba(255,180,0,.08)", color: "#ffd700", fontFamily: "'Orbitron',monospace",
+              fontSize: ".4rem", letterSpacing: ".15em", cursor: "pointer",
+            }}
+          >
+            ↺ RELOAD PAGE
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function NarrativeRadarInner() {
+  const [narratives,  setNarratives] = useState(() => normalizeNarratives(seedNarratives())); // seed = fallback
+  const [dataStatus,  setDataStatus] = useState("loading"); // "loading"|"live"|"stale"|"error"
+  const [fetchError,  setFetchError] = useState(null);
   const [expanded,    setExpanded]   = useState(null);
   const [filterHeat,  setFilterHeat] = useState("ALL");
   const [filterMom,   setFilterMom]  = useState("ALL");
@@ -1101,12 +1203,19 @@ export default function NarrativeRadar() {
 
   // Fetch real data from /api/narratives (written by narrative_scanner.py)
   useEffect(() => {
+    let cancelled = false;
+    setDataStatus("loading");
+
     fetch("/api/narratives")
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error(`API returned ${r.status}`);
+        return r.json();
+      })
       .then(d => {
-        if (d.narratives && d.narratives.length > 0) {
-          // Map API fields to component fields
-          const mapped = d.narratives.map(n => ({
+        if (cancelled) return;
+
+        if (Array.isArray(d?.narratives) && d.narratives.length > 0) {
+          const mapped = normalizeNarratives(d.narratives.map(n => ({
             ...n,
             // V1 compat fields
             score:      n.score,
@@ -1134,13 +1243,27 @@ export default function NarrativeRadar() {
               outlook:           n.ai_outlook || "",
               confidenceAnalysis:n.ai_confidence || "",
             },
-          })).sort((a, b) => b.score - a.score);
+          }))).sort((a, b) => b.score - a.score);
+
           setNarratives(mapped);
-          setDataSource(d.is_real ? "live" : "seeded");
-          if (d.last_updated) setLastUpdated(new Date(d.last_updated));
+          setDataStatus(d.stale ? "stale" : "live");
+          setFetchError(null);
+          if (d.updatedAt) setLastUpdated(new Date(d.updatedAt));
+          else setLastUpdated(new Date());
+        } else {
+          // API responded but no real narratives yet — keep seeded data visible
+          setDataStatus("stale");
         }
       })
-      .catch(e => console.warn("[NarrativeRadar] API fetch failed, using seeded data:", e));
+      .catch(e => {
+        if (cancelled) return;
+        console.warn("[NarrativeRadar] API fetch failed, using seeded data:", e);
+        setDataStatus("error");
+        setFetchError(e.message || "Failed to load live data");
+        // narratives state already holds normalized seed data — page keeps working
+      });
+
+    return () => { cancelled = true; };
   }, []);
 
   // Simulate live update tick
@@ -1229,9 +1352,16 @@ export default function NarrativeRadar() {
         <div style={{ marginBottom:"2rem" }}>
           <div style={{ display:"flex", alignItems:"center", gap:".8rem", marginBottom:".7rem", flexWrap:"wrap" }}>
             <div style={{ display:"flex", alignItems:"center", gap:".5rem" }}>
-              <span style={{ width:"7px", height:"7px", borderRadius:"50%", background:dataStatus==="live"?T.ok:dataStatus==="loading"?T.gold:T.warn, boxShadow:`0 0 10px ${dataStatus==="live"?T.ok:T.gold}`, display:"inline-block", animation:"nr-blink 1.4s infinite" }}/>
-              <span style={{ fontFamily:T.font, fontSize:".38rem", letterSpacing:".28em", color:dataStatus==="live"?"rgba(80,255,160,.7)":"rgba(255,215,0,.7)" }}>
-                {dataStatus==="live"?"PHASE 2 — LIVE DATA":dataStatus==="loading"?"LOADING INTELLIGENCE…":"PHASE 2 — SEED DATA"}
+              <span style={{ width:"7px", height:"7px", borderRadius:"50%",
+                background: dataStatus==="live" ? T.ok : dataStatus==="loading" ? T.gold : dataStatus==="error" ? T.danger : T.warn,
+                boxShadow: `0 0 10px ${dataStatus==="live"?T.ok:dataStatus==="error"?T.danger:T.gold}`,
+                display:"inline-block", animation: dataStatus==="loading" ? "nr-blink .8s infinite" : "nr-blink 1.4s infinite" }}/>
+              <span style={{ fontFamily:T.font, fontSize:".38rem", letterSpacing:".28em",
+                color: dataStatus==="live" ? "rgba(80,255,160,.7)" : dataStatus==="error" ? "rgba(255,80,80,.7)" : "rgba(255,215,0,.7)" }}>
+                {dataStatus==="live"    ? "PHASE 2 — LIVE DATA"
+                 : dataStatus==="loading"? "LOADING INTELLIGENCE…"
+                 : dataStatus==="error"  ? "OFFLINE — SHOWING CACHED DATA"
+                 : "PHASE 2 — SEED DATA"}
               </span>
             </div>
             <span style={{ fontFamily:T.font, fontSize:".34rem", color:"rgba(255,255,255,.2)", letterSpacing:".1em" }}>
@@ -1360,7 +1490,7 @@ export default function NarrativeRadar() {
                       <span style={{ fontSize:".9rem", flexShrink:0 }}>{n.icon}</span>
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ fontFamily:T.font, fontSize:".34rem", color:"rgba(255,255,255,.65)", letterSpacing:".08em", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginBottom:".2rem" }}>
-                          {n.name.split(" ")[0].toUpperCase()}
+                          {(n.name||"?").split(" ")[0].toUpperCase()}
                         </div>
                         <ProgressBar value={n.score} color={HEAT[n.heat].color} height={2} animated={false}/>
                       </div>
@@ -1383,9 +1513,9 @@ export default function NarrativeRadar() {
               <div className="panel-body">
                 <div style={{ display:"flex", flexDirection:"column", gap:".5rem" }}>
                   {[
-                    { label:"INFLOW",  items:narratives.filter(n=>n.capitalFlow>0.5).map(n=>n.name.split(" ")[0]),  color:T.ok,     icon:"↑" },
-                    { label:"NEUTRAL", items:narratives.filter(n=>Math.abs(n.capitalFlow)<=0.5).map(n=>n.name.split(" ")[0]), color:"rgba(255,255,255,.4)", icon:"→" },
-                    { label:"OUTFLOW", items:narratives.filter(n=>n.capitalFlow<-0.5).map(n=>n.name.split(" ")[0]), color:T.danger, icon:"↓" },
+                    { label:"INFLOW",  items:narratives.filter(n=>n.capitalFlow>0.5).map(n=>(n.name||"?").split(" ")[0]),  color:T.ok,     icon:"↑" },
+                    { label:"NEUTRAL", items:narratives.filter(n=>Math.abs(n.capitalFlow)<=0.5).map(n=>(n.name||"?").split(" ")[0]), color:"rgba(255,255,255,.4)", icon:"→" },
+                    { label:"OUTFLOW", items:narratives.filter(n=>n.capitalFlow<-0.5).map(n=>(n.name||"?").split(" ")[0]), color:T.danger, icon:"↓" },
                   ].map((row,i) => (
                     <div key={i}>
                       <div style={{ display:"flex", alignItems:"center", gap:".4rem", marginBottom:".3rem" }}>
@@ -1397,7 +1527,7 @@ export default function NarrativeRadar() {
                           ? <span style={{ fontFamily:T.body, fontSize:".78rem", color:"rgba(255,255,255,.2)" }}>—</span>
                           : row.items.map((name,j) => (
                             <span key={j} style={{ fontFamily:T.font, fontSize:".28rem", letterSpacing:".1em", color:`${row.color}cc`, padding:".1rem .4rem", borderRadius:"4px", background:`${row.color}0e`, border:`1px solid ${row.color}22` }}>
-                              {name.toUpperCase()}
+                              {(name||"?").toUpperCase()}
                             </span>
                           ))
                         }
@@ -1516,3 +1646,16 @@ export default function NarrativeRadar() {
     </div>
   );
 }
+
+// ═══════════════════════════════════════════════════════════
+// DEFAULT EXPORT — wrapped in ErrorBoundary
+// ═══════════════════════════════════════════════════════════
+export default function NarrativeRadar() {
+  return (
+    <NarrativeRadarErrorBoundary>
+      <NarrativeRadarInner />
+    </NarrativeRadarErrorBoundary>
+  );
+}
+
+    
