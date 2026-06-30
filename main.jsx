@@ -13,12 +13,12 @@ import NarrativeRadar            from './src/NarrativeRadar.jsx'
 import SmartMoneyIntelligence    from './src/SmartMoneyIntelligence.jsx'
 import OpportunityScanner        from './src/OpportunityScanner.jsx'
 import AlphaEngine               from './src/AlphaEngine.jsx'
+import AlphaEngineCore           from './src/AlphaEngineCore.jsx'
 import SurvivalScorePage         from './src/OrbitMetrics.jsx'
 import ThreatScannerPage         from './src/ThreatScanner.jsx'
 import SolarPulsePage            from './src/SolarPulse.jsx'
 import IntelligencePanelsDemo    from './src/IntelligencePanels.jsx'
 import ReactorDemo               from './src/SurvivalReactor.jsx'
-import AlphaEngineCore from './src/AlphaEngineCore.jsx'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -31,6 +31,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/smart-money"   element={<SmartMoneyIntelligence />} />
         <Route path="/scanner"       element={<OpportunityScanner />} />
         <Route path="/alpha-engine"  element={<AlphaEngine />} />
+        <Route path="/alpha-core"    element={<AlphaEngineCore />} />
         <Route path="/report"        element={<ReportCard />} />
         <Route path="/dashboard"     element={<Dashboard />} />
         <Route path="/litepaper"     element={<Litepaper />} />
