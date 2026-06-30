@@ -1,4 +1,4 @@
-export const config = { maxDuration: 30 };
+    export const config = { maxDuration: 30 };
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -31,3 +31,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: e.message });
   }
 }
+
+    
