@@ -18,6 +18,7 @@ import ThreatScannerPage         from './src/ThreatScanner.jsx'
 import SolarPulsePage            from './src/SolarPulse.jsx'
 import IntelligencePanelsDemo    from './src/IntelligencePanels.jsx'
 import ReactorDemo               from './src/SurvivalReactor.jsx'
+import AlphaEngineCore from './src/AlphaEngineCore.jsx'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
