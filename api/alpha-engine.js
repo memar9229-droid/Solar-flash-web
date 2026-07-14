@@ -204,13 +204,32 @@ function detectSector(symbol) {
  * always returns a structured object describing what succeeded.
  */
 async function collectAllData(mint) {
-  const dex = await fetchDexScreener(mint);
+  // Handle symbol:XXX pseudo-mints (non-Solana tokens)
+  let dex;
+  let resolvedMint = mint;
+  if (mint.startsWith("symbol:")) {
+    const sym = mint.slice(7);
+    const r = await safeFetch(`https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(sym)}`, {}, 8000);
+    if (r && r.ok) {
+      try {
+        const j = await r.json();
+        const pairs = (j.pairs || []).filter(p =>
+          p.baseToken?.symbol?.toUpperCase() === sym.toUpperCase() &&
+          parseFloat(p.liquidity?.usd || 0) > 5000
+        ).sort((a,b) => parseFloat(b.liquidity?.usd||0) - parseFloat(a.liquidity?.usd||0));
+        dex = pairs[0] || null;
+        if (dex?.baseToken?.address) resolvedMint = dex.baseToken.address;
+      } catch { dex = null; }
+    }
+  } else {
+    dex = await fetchDexScreener(mint);
+  }
   const symbol = dex?.baseToken?.symbol || null;
   const sector = detectSector(symbol);
 
   const [rugcheck, helius, narrativeRows, smRows] = await Promise.all([
-    fetchRugcheck(mint),
-    fetchHelius(mint),
+    resolvedMint.startsWith("symbol:") ? Promise.resolve(null) : fetchRugcheck(resolvedMint),
+    resolvedMint.startsWith("symbol:") ? Promise.resolve({parsedInfo:null,holders:[],asset:null}) : fetchHelius(resolvedMint),
     sector ? fetchSupabaseRow("narratives", `id=eq.${sector}&select=*&limit=1`) : Promise.resolve(null),
     sector ? fetchSupabaseRow("smart_money_sectors",
       `sector=ilike.${encodeURIComponent(sector)}*&select=*&limit=1`) : Promise.resolve(null),
@@ -636,19 +655,55 @@ function formatResponse(data, scores, decision, confidence, risk, levels, suitab
 // MAIN HANDLER — orchestrates the full pipeline
 // ════════════════════════════════════════════════════════════════
 
+// Symbol → best pair lookup via DexScreener (for non-Solana tokens)
+async function resolveMintFromSymbol(symbol) {
+  const r = await safeFetch(
+    `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(symbol)}`,
+    {}, 8000
+  );
+  if (!r || !r.ok) return null;
+  try {
+    const j = await r.json();
+    const pairs = (j.pairs || []).filter(p =>
+      p.baseToken?.symbol?.toUpperCase() === symbol.toUpperCase() &&
+      parseFloat(p.liquidity?.usd || 0) > 10000
+    ).sort((a,b) => parseFloat(b.liquidity?.usd||0) - parseFloat(a.liquidity?.usd||0));
+    const best = pairs[0];
+    if (!best) return null;
+    return {
+      mint:   best.baseToken?.address || null,
+      chain:  best.chainId,
+      pair:   best,
+    };
+  } catch { return null; }
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Content-Type", "application/json");
   if (req.method === "OPTIONS") return res.status(200).end();
 
-  const mint = req.query?.mint;
+  let mint      = req.query?.mint || null;
+  const symbol  = req.query?.symbol || null;
   const timeframe = (req.query?.timeframe || "swing").toLowerCase();
 
-  if (!mint || mint.length < 32) {
+  // Support symbol-based lookup when no mint provided
+  if (!mint && symbol) {
+    const resolved = await resolveMintFromSymbol(symbol);
+    if (resolved?.mint) {
+      mint = resolved.mint;
+    } else {
+      // No mint found — run with symbol only (Helius/RugCheck will be skipped gracefully)
+      mint = `symbol:${symbol.toUpperCase()}`;
+    }
+  }
+
+  if (!mint) {
     return res.status(400).json({
       success: false,
-      error: "Valid Solana mint address required",
-      usage: "/api/alpha-engine?mint=<mint>&timeframe=scalp|intraday|swing|position",
+      error: "Provide ?mint=<solana_mint> or ?symbol=<token_symbol>",
+      usage: "/api/alpha-engine?mint=<mint>&timeframe=swing",
+      usageAlt: "/api/alpha-engine?symbol=SOL&timeframe=swing",
     });
   }
   if (!CONFIG.timeframes[timeframe]) {
